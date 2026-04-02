@@ -1,35 +1,28 @@
-const Database = require("better-sqlite3");
-const path = require("path");
-const { runMigrations } = require("./migrate");
+const postgres = require("postgres");
 
-const DB_PATH = path.join(process.cwd(), "..", "shop.db");
+const sql = postgres(process.env.DATABASE_URL, {
+  ssl: "require",
+});
 
-let _db = null;
-
-function getDb() {
-  if (!_db) {
-    _db = new Database(DB_PATH);
-    _db.pragma("journal_mode = WAL");
-    _db.pragma("foreign_keys = ON");
-    runMigrations(_db);
-  }
-  return _db;
+// SQLite uses ? for placeholders; PostgreSQL uses $1, $2, etc.
+function convertPlaceholders(query) {
+  let index = 0;
+  return query.replace(/\?/g, () => `$${++index}`);
 }
 
-function all(sql, params = []) {
-  return getDb().prepare(sql).all(...params);
+async function all(query, params = []) {
+  const rows = await sql.unsafe(convertPlaceholders(query), params);
+  return [...rows];
 }
 
-function get(sql, params = []) {
-  return getDb().prepare(sql).get(...params);
+async function get(query, params = []) {
+  const rows = await sql.unsafe(convertPlaceholders(query), params);
+  return rows[0] ?? null;
 }
 
-function run(sql, params = []) {
-  return getDb().prepare(sql).run(...params);
+async function run(query, params = []) {
+  const rows = await sql.unsafe(convertPlaceholders(query), params);
+  return { changes: rows.count };
 }
 
-function transaction(fn) {
-  return getDb().transaction(fn)();
-}
-
-module.exports = { getDb, all, get, run, transaction };
+module.exports = { all, get, run, sql };

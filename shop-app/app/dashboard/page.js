@@ -10,20 +10,20 @@ export default async function DashboardPage() {
   const customerId = cookieStore.get("customer_id")?.value;
   if (!customerId) redirect("/select-customer");
 
-  const customer = get(
+  const customer = await get(
     `SELECT full_name, email FROM customers WHERE customer_id = ?`,
     [customerId]
   );
 
   if (!customer) redirect("/select-customer");
 
-  const stats = get(
+  const stats = await get(
     `SELECT COUNT(*) AS order_count, COALESCE(SUM(order_total), 0) AS total_spend
      FROM orders WHERE customer_id = ?`,
     [customerId]
   );
 
-  const recentOrders = all(
+  const recentOrders = await all(
     `SELECT order_id, order_datetime, fulfilled, order_total
      FROM orders WHERE customer_id = ?
      ORDER BY order_datetime DESC LIMIT 5`,

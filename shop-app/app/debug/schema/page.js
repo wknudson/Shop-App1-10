@@ -2,21 +2,31 @@ import { all } from "../../../lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default function SchemaPage() {
-  const tables = all(
-    `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`
+export default async function SchemaPage() {
+  const tables = await all(
+    `SELECT table_name AS name
+     FROM information_schema.tables
+     WHERE table_schema = 'public'
+     ORDER BY table_name`
   );
 
-  const schema = tables.map((t) => ({
-    name: t.name,
-    columns: all(`PRAGMA table_info("${t.name}")`),
-  }));
+  const schema = [];
+  for (const t of tables) {
+    const columns = await all(
+      `SELECT ordinal_position, column_name, data_type, is_nullable, column_default
+       FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = ?
+       ORDER BY ordinal_position`,
+      [t.name]
+    );
+    schema.push({ name: t.name, columns });
+  }
 
   return (
     <>
       <h1>Database Schema (Debug)</h1>
       <p className="text-muted mb-3">
-        Tables found in shop.db — use this to verify column names for your queries.
+        Tables found in Supabase — use this to verify column names for your queries.
       </p>
       {schema.map((table) => (
         <div key={table.name} className="card">
@@ -24,23 +34,21 @@ export default function SchemaPage() {
           <table>
             <thead>
               <tr>
-                <th>CID</th>
+                <th>#</th>
                 <th>Column Name</th>
                 <th>Type</th>
-                <th>Not Null</th>
+                <th>Nullable</th>
                 <th>Default</th>
-                <th>PK</th>
               </tr>
             </thead>
             <tbody>
               {table.columns.map((col) => (
-                <tr key={col.cid}>
-                  <td>{col.cid}</td>
-                  <td><strong>{col.name}</strong></td>
-                  <td>{col.type || "—"}</td>
-                  <td>{col.notnull ? "YES" : "no"}</td>
-                  <td>{col.dflt_value ?? "—"}</td>
-                  <td>{col.pk ? "✓" : ""}</td>
+                <tr key={col.ordinal_position}>
+                  <td>{col.ordinal_position}</td>
+                  <td><strong>{col.column_name}</strong></td>
+                  <td>{col.data_type || "—"}</td>
+                  <td>{col.is_nullable === "NO" ? "NOT NULL" : "yes"}</td>
+                  <td>{col.column_default ?? "—"}</td>
                 </tr>
               ))}
             </tbody>

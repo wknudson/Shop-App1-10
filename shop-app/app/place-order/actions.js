@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getDb } from "../../lib/db";
+import { sql } from "../../lib/db";
 
 export async function placeOrder(formData) {
   const cookieStore = await cookies();
@@ -21,55 +21,46 @@ export async function placeOrder(formData) {
     }
   }
 
-  const db = getDb();
-
-  const insertOrder = db.prepare(`
-    INSERT INTO orders (
-      customer_id, order_datetime, billing_zip, shipping_zip, shipping_state,
-      payment_method, device_type, ip_country, promo_used,
-      order_subtotal, shipping_fee, tax_amount, order_total,
-      risk_score, is_fraud, fulfilled
-    ) VALUES (
-      ?, datetime('now'), '', '', '',
-      'card', 'web', 'US', 0,
-      ?, ?, ?, ?,
-      0.0, 0, 0
-    )
-  `);
-
-  const insertItem = db.prepare(`
-    INSERT INTO order_items (order_id, product_id, quantity, unit_price, line_total)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-
-  const getProduct = db.prepare(`SELECT price FROM products WHERE product_id = ?`);
-
-  const placeTransaction = db.transaction(() => {
+  await sql.begin(async (tx) => {
     let subtotal = 0;
-    const resolvedItems = items.map((item) => {
-      const product = getProduct.get(item.product_id);
+    const resolvedItems = [];
+
+    for (const item of items) {
+      const [product] = await tx.unsafe(
+        `SELECT price FROM products WHERE product_id = $1`,
+        [item.product_id]
+      );
       if (!product) throw new Error(`Product ${item.product_id} not found`);
       const lineTotal = product.price * item.quantity;
       subtotal += lineTotal;
-      return { ...item, unit_price: product.price, line_total: lineTotal };
-    });
+      resolvedItems.push({ ...item, unit_price: product.price, line_total: lineTotal });
+    }
 
     const shippingFee = 9.99;
     const taxAmount = Math.round(subtotal * 0.07 * 100) / 100;
     const orderTotal = Math.round((subtotal + shippingFee + taxAmount) * 100) / 100;
 
-    const result = insertOrder.run(
-      customerId, subtotal, shippingFee, taxAmount, orderTotal
-    );
-    const orderId = result.lastInsertRowid;
+    const [inserted] = await tx.unsafe(`
+      INSERT INTO orders (
+        customer_id, order_datetime, billing_zip, shipping_zip, shipping_state,
+        payment_method, device_type, ip_country, promo_used,
+        order_subtotal, shipping_fee, tax_amount, order_total,
+        risk_score, is_fraud, fulfilled
+      ) VALUES (
+        $1, NOW(), '', '', '',
+        'card', 'web', 'US', 0,
+        $2, $3, $4, $5,
+        0.0, 0, 0
+      ) RETURNING order_id
+    `, [customerId, subtotal, shippingFee, taxAmount, orderTotal]);
 
     for (const item of resolvedItems) {
-      insertItem.run(orderId, item.product_id, item.quantity, item.unit_price, item.line_total);
+      await tx.unsafe(`
+        INSERT INTO order_items (order_id, product_id, quantity, unit_price, line_total)
+        VALUES ($1, $2, $3, $4, $5)
+      `, [inserted.order_id, item.product_id, item.quantity, item.unit_price, item.line_total]);
     }
-
-    return orderId;
   });
 
-  placeTransaction();
   redirect("/orders?placed=1");
 }

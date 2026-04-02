@@ -3,8 +3,8 @@ import CustomerList from "./CustomerList";
 
 export const dynamic = "force-dynamic";
 
-export default function SelectCustomerPage() {
-  const customers = all(
+export default async function SelectCustomerPage() {
+  const customers = await all(
     `SELECT customer_id, full_name, email FROM customers ORDER BY full_name`
   );
 

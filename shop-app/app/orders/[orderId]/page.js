@@ -12,7 +12,7 @@ export default async function OrderDetailPage({ params }) {
 
   const { orderId } = await params;
 
-  const order = get(
+  const order = await get(
     `SELECT order_id, customer_id, order_datetime, fulfilled, order_subtotal,
             shipping_fee, tax_amount, order_total
      FROM orders WHERE order_id = ? AND customer_id = ?`,
@@ -21,7 +21,7 @@ export default async function OrderDetailPage({ params }) {
 
   if (!order) notFound();
 
-  const items = all(
+  const items = await all(
     `SELECT oi.quantity, oi.unit_price, oi.line_total, p.product_name
      FROM order_items oi
      JOIN products p ON p.product_id = oi.product_id

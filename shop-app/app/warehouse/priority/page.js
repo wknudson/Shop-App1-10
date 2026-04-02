@@ -3,8 +3,8 @@ import { all } from "../../../lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default function PriorityQueuePage() {
-  const queue = all(`
+export default async function PriorityQueuePage() {
+  const queue = await all(`
     SELECT
       o.order_id,
       o.order_datetime,

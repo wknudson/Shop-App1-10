@@ -13,7 +13,7 @@ export default async function OrdersPage({ searchParams }) {
   const params = await searchParams;
   const justPlaced = params?.placed === "1";
 
-  const orders = all(
+  const orders = await all(
     `SELECT order_id, order_datetime, fulfilled, order_total
      FROM orders WHERE customer_id = ?
      ORDER BY order_datetime DESC`,
