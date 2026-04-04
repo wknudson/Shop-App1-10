@@ -8,10 +8,10 @@ export default function ScoringPage() {
     <>
       <h1>Run Scoring</h1>
       <p className="text-muted mb-3">
-        Click the button below to run the ML inference script. It will score all
-        unfulfilled orders that do not yet have predictions, writing results into the{" "}
-        <code>order_predictions</code> table. After scoring, visit the{" "}
-        <Link href="/warehouse/priority">Priority Queue</Link> to see updated results.
+        This calls the Render scoring API (<code>POST /score</code>). It scores unfulfilled
+        orders that are not yet in <code>order_predictions</code> and writes fraud
+        probabilities. Then open the{" "}
+        <Link href="/warehouse/priority">priority queue</Link> to review and label orders.
       </p>
       <ScoringButton />
     </>

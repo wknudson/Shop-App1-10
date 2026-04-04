@@ -538,6 +538,96 @@ GROUP BY
     s.carrier, s.shipping_method, s.distance_band, s.late_delivery
 """
 
+# Same feature engineering as QUERY, but target is human admin label and only labeled rows.
+QUERY_TRAINING_LABELED = """
+SELECT
+    o.order_id,
+    o.order_subtotal,
+    o.shipping_fee,
+    o.tax_amount,
+    o.order_total,
+    o.risk_score,
+    o.promo_used,
+    o.payment_method,
+    o.device_type,
+    o.ip_country,
+    o.shipping_state,
+    CASE WHEN o.billing_zip != o.shipping_zip THEN 1 ELSE 0 END  AS zip_mismatch,
+    EXTRACT(HOUR FROM o.order_datetime::timestamp)               AS order_hour,
+    EXTRACT(DOW  FROM o.order_datetime::timestamp)               AS order_dow,
+    c.gender,
+    c.customer_segment,
+    c.loyalty_tier,
+    c.is_active                                                  AS customer_is_active,
+    DATE_PART('year', AGE(NOW(), c.birthdate::timestamp))::INT   AS customer_age,
+    DATE_PART('day',  o.order_datetime::timestamp
+                    - c.created_at::timestamp) / 365.25          AS customer_tenure_years,
+    s.carrier,
+    s.shipping_method,
+    s.distance_band,
+    s.late_delivery,
+    COUNT(oi.order_item_id)                                      AS num_items,
+    SUM(oi.quantity)                                             AS total_qty,
+    o.admin_fraud_label
+FROM orders o
+JOIN customers   c  ON o.customer_id = c.customer_id
+LEFT JOIN shipments   s  ON o.order_id    = s.order_id
+JOIN order_items oi ON o.order_id    = oi.order_id
+WHERE o.admin_fraud_label IS NOT NULL
+GROUP BY
+    o.order_id, o.order_subtotal, o.shipping_fee, o.tax_amount, o.order_total,
+    o.risk_score, o.promo_used, o.payment_method, o.device_type, o.ip_country,
+    o.shipping_state, o.billing_zip, o.shipping_zip, o.order_datetime, o.admin_fraud_label,
+    c.gender, c.customer_segment, c.loyalty_tier, c.is_active,
+    c.birthdate, c.created_at,
+    s.carrier, s.shipping_method, s.distance_band, s.late_delivery
+"""
+
+# Unfulfilled orders without a prediction row yet (for batch fraud scoring).
+QUERY_SCORING_BATCH = """
+SELECT
+    o.order_id,
+    o.order_subtotal,
+    o.shipping_fee,
+    o.tax_amount,
+    o.order_total,
+    o.risk_score,
+    o.promo_used,
+    o.payment_method,
+    o.device_type,
+    o.ip_country,
+    o.shipping_state,
+    CASE WHEN o.billing_zip != o.shipping_zip THEN 1 ELSE 0 END  AS zip_mismatch,
+    EXTRACT(HOUR FROM o.order_datetime::timestamp)               AS order_hour,
+    EXTRACT(DOW  FROM o.order_datetime::timestamp)               AS order_dow,
+    c.gender,
+    c.customer_segment,
+    c.loyalty_tier,
+    c.is_active                                                  AS customer_is_active,
+    DATE_PART('year', AGE(NOW(), c.birthdate::timestamp))::INT   AS customer_age,
+    DATE_PART('day',  o.order_datetime::timestamp
+                    - c.created_at::timestamp) / 365.25          AS customer_tenure_years,
+    s.carrier,
+    s.shipping_method,
+    s.distance_band,
+    s.late_delivery,
+    COUNT(oi.order_item_id)                                      AS num_items,
+    SUM(oi.quantity)                                             AS total_qty
+FROM orders o
+JOIN customers   c  ON o.customer_id = c.customer_id
+LEFT JOIN shipments   s  ON o.order_id    = s.order_id
+JOIN order_items oi ON o.order_id    = oi.order_id
+WHERE o.fulfilled = 0
+  AND NOT EXISTS (SELECT 1 FROM order_predictions p WHERE p.order_id = o.order_id)
+GROUP BY
+    o.order_id, o.order_subtotal, o.shipping_fee, o.tax_amount, o.order_total,
+    o.risk_score, o.promo_used, o.payment_method, o.device_type, o.ip_country,
+    o.shipping_state, o.billing_zip, o.shipping_zip, o.order_datetime,
+    c.gender, c.customer_segment, c.loyalty_tier, c.is_active,
+    c.birthdate, c.created_at,
+    s.carrier, s.shipping_method, s.distance_band, s.late_delivery
+"""
+
 
 def main():
     # ── Load data from Supabase ───────────────────────────────────────

@@ -48,8 +48,9 @@ CREATE TABLE orders (
   tax_amount         REAL NOT NULL,
   order_total        REAL NOT NULL,
   risk_score         REAL NOT NULL,
-  is_fraud           INTEGER NOT NULL DEFAULT 0,
-  fulfilled          INTEGER NOT NULL DEFAULT 0,
+  is_fraud             INTEGER NOT NULL DEFAULT 0,
+  fulfilled            INTEGER NOT NULL DEFAULT 0,
+  admin_fraud_label    INTEGER DEFAULT NULL,
 
   FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
 );
@@ -103,6 +104,7 @@ CREATE TABLE order_predictions (
   late_delivery_probability REAL,
   predicted_late_delivery   INTEGER,
   prediction_timestamp      TEXT,
+  fraud_probability         REAL,
 
   FOREIGN KEY (order_id) REFERENCES orders(order_id)
 );

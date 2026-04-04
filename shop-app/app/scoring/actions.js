@@ -1,40 +1,80 @@
 "use server";
 
-import { execFile } from "child_process";
-import path from "path";
+function extractErrorDetail(data) {
+  const d = data?.detail;
+  if (typeof d === "string") return d;
+  if (Array.isArray(d)) {
+    return d.map((x) => x.msg || JSON.stringify(x)).join("; ");
+  }
+  return null;
+}
 
 export async function runScoring() {
-  const scriptPath = path.join(process.cwd(), "..", "jobs", "run_inference.py");
+  const base = process.env.SCORING_SERVICE_URL;
+  const secret = process.env.SCORING_SECRET;
+  const ts = new Date().toISOString();
 
-  return new Promise((resolve) => {
-    execFile(
-      "python3",
-      [scriptPath],
-      { timeout: 60000, cwd: path.join(process.cwd(), "..") },
-      (error, stdout, stderr) => {
-        if (error) {
-          resolve({
-            success: false,
-            message: error.message,
-            stderr: stderr || "",
-            stdout: stdout || "",
-            timestamp: new Date().toISOString(),
-          });
-          return;
-        }
+  if (!base || !secret) {
+    return {
+      success: false,
+      message: "SCORING_SERVICE_URL or SCORING_SECRET is not configured on the server.",
+      count: null,
+      stdout: "",
+      stderr: "",
+      timestamp: ts,
+    };
+  }
 
-        const countMatch = stdout.match(/scored\s+(\d+)/i);
-        const count = countMatch ? parseInt(countMatch[1]) : null;
+  const url = `${base.replace(/\/$/, "")}/score`;
 
-        resolve({
-          success: true,
-          message: "Scoring completed successfully.",
-          count,
-          stdout: stdout.trim(),
-          stderr: stderr.trim(),
-          timestamp: new Date().toISOString(),
-        });
-      }
-    );
-  });
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "X-Scoring-Secret": secret,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    const text = await res.text();
+    let data = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = {};
+    }
+
+    if (!res.ok) {
+      const detail = extractErrorDetail(data) || text || res.statusText;
+      return {
+        success: false,
+        message: detail,
+        count: null,
+        stdout: text,
+        stderr: "",
+        timestamp: ts,
+      };
+    }
+
+    const count = typeof data.scored === "number" ? data.scored : null;
+
+    return {
+      success: true,
+      message: data.message || "Scoring completed successfully.",
+      count,
+      stdout: text,
+      stderr: "",
+      timestamp: ts,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      message: err.message || "Request to scoring service failed.",
+      count: null,
+      stdout: "",
+      stderr: "",
+      timestamp: ts,
+    };
+  }
 }
