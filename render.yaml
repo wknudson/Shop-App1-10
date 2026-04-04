@@ -1,0 +1,10 @@
+services:
+  - type: cron
+    name: shop-app-inference
+    runtime: python
+    plan: standard
+    schedule: "0 2 * * *"  # runs daily at 2 AM UTC
+    startCommand: cd jobs && python run_inference.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
