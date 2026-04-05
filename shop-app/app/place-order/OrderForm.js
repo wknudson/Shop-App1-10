@@ -4,12 +4,12 @@ import { useState } from "react";
 import { placeOrder } from "./actions";
 
 export default function OrderForm({ products }) {
-  const [items, setItems] = useState([{ product_id: "", quantity: 1 }]);
+  const [items, setItems] = useState([{ product_id: "", quantity: "1" }]);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   function addRow() {
-    setItems([...items, { product_id: "", quantity: 1 }]);
+    setItems([...items, { product_id: "", quantity: "1" }]);
   }
 
   function removeRow(index) {
@@ -25,8 +25,9 @@ export default function OrderForm({ products }) {
 
   function getLineTotal(item) {
     const product = products.find((p) => p.product_id === Number(item.product_id));
-    if (!product || !item.quantity) return 0;
-    return product.price * item.quantity;
+    const q = parseInt(String(item.quantity), 10);
+    if (!product || !Number.isFinite(q) || q < 1) return 0;
+    return product.price * q;
   }
 
   const subtotal = items.reduce((sum, item) => sum + getLineTotal(item), 0);
@@ -38,9 +39,12 @@ export default function OrderForm({ products }) {
     e.preventDefault();
     setError("");
 
-    const validItems = items.filter((item) => item.product_id && item.quantity >= 1);
+    const validItems = items.filter((item) => {
+      const q = parseInt(String(item.quantity), 10);
+      return item.product_id && Number.isFinite(q) && q >= 1;
+    });
     if (validItems.length === 0) {
-      setError("Add at least one line item with a product and quantity.");
+      setError("Add at least one line item with a product and quantity of at least 1.");
       return;
     }
 
@@ -91,9 +95,9 @@ export default function OrderForm({ products }) {
               <td>
                 <input
                   type="number"
-                  min="1"
+                  inputMode="numeric"
                   value={item.quantity}
-                  onChange={(e) => updateItem(i, "quantity", parseInt(e.target.value) || 1)}
+                  onChange={(e) => updateItem(i, "quantity", e.target.value)}
                   style={{ width: 80 }}
                 />
               </td>
