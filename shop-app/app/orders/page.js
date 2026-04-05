@@ -5,6 +5,17 @@ import { all } from "../../lib/db";
 
 export const dynamic = "force-dynamic";
 
+function formatOrderDateTime(value) {
+  return new Date(value).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 export default async function OrdersPage({ searchParams }) {
   const cookieStore = await cookies();
   const customerId = cookieStore.get("customer_id")?.value;
@@ -44,7 +55,7 @@ export default async function OrdersPage({ searchParams }) {
                 <td>
                   <Link href={`/orders/${o.order_id}`}>#{o.order_id}</Link>
                 </td>
-                <td>{o.order_datetime}</td>
+                <td>{formatOrderDateTime(o.order_datetime)}</td>
                 <td>
                   <span className={`badge ${o.fulfilled ? "badge-yes" : "badge-no"}`}>
                     {o.fulfilled ? "Yes" : "No"}

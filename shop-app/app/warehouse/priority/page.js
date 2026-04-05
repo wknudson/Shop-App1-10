@@ -17,6 +17,17 @@ function formatAdminLabel(v) {
   return <span className="text-muted">Unreviewed</span>;
 }
 
+function formatOrderDateTime(value) {
+  return new Date(value).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 export default async function PriorityQueuePage() {
   const queue = await all(`
     SELECT
@@ -74,7 +85,7 @@ export default async function PriorityQueuePage() {
                   <Link href={`/orders/${row.order_id}`}>#{row.order_id}</Link>
                 </td>
                 <td>{row.customer_name}</td>
-                <td>{row.order_datetime}</td>
+                <td>{formatOrderDateTime(row.order_datetime)}</td>
                 <td className="text-right">${Number(row.order_total).toFixed(2)}</td>
                 <td className="text-right">{formatPct(row.fraud_probability)}</td>
                 <td>
