@@ -27,7 +27,6 @@ export default async function PriorityQueuePage() {
       o.admin_fraud_label,
       c.customer_id,
       c.full_name AS customer_name,
-      p.late_delivery_probability,
       p.predicted_late_delivery,
       p.prediction_timestamp,
       p.fraud_probability
@@ -44,8 +43,7 @@ export default async function PriorityQueuePage() {
     <>
       <h1>Fraud and fulfillment priority queue</h1>
       <div className="msg-info mb-3">
-        Unfulfilled orders with ML scores, ranked by <strong>fraud probability</strong> (then
-        late-delivery probability when present). Label orders to build training data for the
+        Unfulfilled orders with ML scores, ranked by <strong>fraud probability</strong>. Label orders to build training data for the
         daily model retrain. Run <Link href="/scoring">scoring</Link> to score new orders.
       </div>
 
@@ -63,7 +61,6 @@ export default async function PriorityQueuePage() {
               <th>Order Date</th>
               <th className="text-right">Total</th>
               <th className="text-right">Fraud prob</th>
-              <th className="text-right">Late prob</th>
               <th>Predicted late</th>
               <th>Admin label</th>
               <th>Review</th>
@@ -80,7 +77,6 @@ export default async function PriorityQueuePage() {
                 <td>{row.order_datetime}</td>
                 <td className="text-right">${Number(row.order_total).toFixed(2)}</td>
                 <td className="text-right">{formatPct(row.fraud_probability)}</td>
-                <td className="text-right">{formatPct(row.late_delivery_probability)}</td>
                 <td>
                   {row.predicted_late_delivery == null ? (
                     <span className="text-muted">—</span>
