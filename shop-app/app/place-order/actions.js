@@ -60,6 +60,12 @@ export async function placeOrder(formData) {
         VALUES ($1, $2, $3, $4, $5)
       `, [inserted.order_id, item.product_id, item.quantity, item.unit_price, item.line_total]);
     }
+
+    await tx.unsafe(`
+      INSERT INTO shipments (order_id, ship_datetime, carrier, shipping_method, 
+      distance_band, promised_days, actual_days, late_delivery)
+      VALUES ($1, NOW(), 'UPS', 'ground', 'medium', 5, 4, 0)
+    `, [inserted.order_id]);
   });
 
   redirect("/orders?placed=1");
